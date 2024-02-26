@@ -208,11 +208,6 @@ namespace SimpleFPS
 
 		public override void Render()
 		{
-			if (_visibleFireCount < _fireCount)
-			{
-				PlayFireEffect();
-			}
-
 			// Prepare projectile visuals for all projectiles that were not displayed yet.
 			for (int i = _visibleFireCount; i < _fireCount; i++)
 			{
@@ -266,21 +261,6 @@ namespace SimpleFPS
 			_fireCount++;
 		}
 
-		private void PlayFireEffect()
-		{
-			if (FireSound != null)
-			{
-				FireSound.PlayOneShot(FireSound.clip);
-			}
-
-			// Reset muzzle effect visibility.
-			_muzzleEffectInstance.SetActive(false);
-			_muzzleEffectInstance.SetActive(true);
-
-			Animator.SetTrigger("Fire");
-
-			GetComponentInParent<Player>().PlayFireEffect();
-		}
 
 		private void ApplyDamage(Hitbox enemyHitbox, Vector3 position, Vector3 direction)
 		{
@@ -303,7 +283,7 @@ namespace SimpleFPS
 			if (HasInputAuthority && Runner.IsForward)
 			{
 				// For local player show UI hit effect.
-				_sceneObjects.GameUI.PlayerView.Crosshair.ShowHit(enemyHealth.IsAlive == false, isCriticalHit);
+				// _sceneObjects.GameUI.PlayerView.Crosshair.ShowHit(enemyHealth.IsAlive == false, isCriticalHit);
 			}
 		}
 

@@ -13,7 +13,6 @@ namespace SimpleFPS
 	{
 		[Header("Components")]
 		public SimpleKCC     KCC;
-		public Weapons       Weapons;
 		public Health        Health;
 		public Animator      Animator;
 		public HitboxRoot    HitboxRoot;
@@ -26,7 +25,6 @@ namespace SimpleFPS
 		public Transform     CameraHandle;
 		public GameObject    FirstPersonRoot;
 		public GameObject    ThirdPersonRoot;
-		public NetworkObject SprayPrefab;
 
 		[Header("Movement")]
 		public float         UpGravity = 15f;
@@ -46,16 +44,6 @@ namespace SimpleFPS
 		private int _visibleJumpCount;
 
 		private SceneObjects _sceneObjects;
-
-		public void PlayFireEffect()
-		{
-			// Player fire animation (hands) is not played when strafing because we lack a proper
-			// animation and we do not want to make the animation controller more complex
-			if (Mathf.Abs(GetAnimationMoveVelocity().x) > 0.2f)
-				return;
-
-			Animator.SetTrigger("Fire");
-		}
 
 		public override void Spawned()
 		{
@@ -129,10 +117,8 @@ namespace SimpleFPS
 			var moveVelocity = GetAnimationMoveVelocity();
 
 			// Set animation parameters.
-			Animator.SetFloat("LocomotionTime", Time.time * 2f);
 			Animator.SetBool("IsAlive", Health.IsAlive);
 			Animator.SetBool("IsGrounded", KCC.IsGrounded);
-			Animator.SetBool("IsReloading", Weapons.CurrentWeapon.IsReloading);
 			Animator.SetFloat("MoveX", moveVelocity.x, 0.05f, Time.deltaTime);
 			Animator.SetFloat("MoveZ", moveVelocity.z, 0.05f, Time.deltaTime);
 			Animator.SetFloat("MoveSpeed", moveVelocity.magnitude);
@@ -141,12 +127,8 @@ namespace SimpleFPS
 			if (Health.IsAlive == false)
 			{
 				// Disable UpperBody (override) and Look (additive) layers. Death animation is full-body.
-
-				int upperBodyLayerIndex = Animator.GetLayerIndex("UpperBody");
-				Animator.SetLayerWeight(upperBodyLayerIndex, Mathf.Max(0f, Animator.GetLayerWeight(upperBodyLayerIndex) - Time.deltaTime));
-
 				int lookLayerIndex = Animator.GetLayerIndex("Look");
-				Animator.SetLayerWeight(lookLayerIndex, Mathf.Max(0f, Animator.GetLayerWeight(lookLayerIndex) - Time.deltaTime));
+				Animator.SetLayerWeight(lookLayerIndex, Mathf.Max(-1f, Animator.GetLayerWeight(lookLayerIndex) - Time.deltaTime));
 			}
 
 			if (_visibleJumpCount < _jumpCount)
@@ -172,8 +154,6 @@ namespace SimpleFPS
 
 		private void ProcessInput(NetworkedInput input)
 		{
-			// Processing input - look rotation, jump, movement, weapon fire, weapon switching, weapon reloading, spray decal.
-
 			KCC.AddLookRotation(input.LookRotationDelta, -89f, 89f);
 
 			// It feels better when player falls quicker
@@ -192,40 +172,6 @@ namespace SimpleFPS
 			if (KCC.HasJumped)
 			{
 				_jumpCount++;
-			}
-
-			if (input.Buttons.IsSet(EInputButton.Fire))
-			{
-				bool justPressed = input.Buttons.WasPressed(_previousButtons, EInputButton.Fire);
-				Weapons.Fire(justPressed);
-				Health.StopImmortality();
-			}
-			else if (input.Buttons.IsSet(EInputButton.Reload))
-			{
-				Weapons.Reload();
-			}
-
-			if (input.Buttons.WasPressed(_previousButtons, EInputButton.Pistol))
-			{
-				Weapons.SwitchWeapon(EWeaponType.Pistol);
-			}
-			else if (input.Buttons.WasPressed(_previousButtons, EInputButton.Rifle))
-			{
-				Weapons.SwitchWeapon(EWeaponType.Rifle);
-			}
-			else if (input.Buttons.WasPressed(_previousButtons, EInputButton.Shotgun))
-			{
-				Weapons.SwitchWeapon(EWeaponType.Shotgun);
-			}
-
-			if (input.Buttons.WasPressed(_previousButtons, EInputButton.Spray) && HasStateAuthority)
-			{
-				if (Runner.GetPhysicsScene().Raycast(CameraHandle.position, KCC.LookDirection, out var hit, 2.5f, LayerMask.GetMask("Default"), QueryTriggerInteraction.Ignore))
-				{
-					// When spraying on the ground, rotate it so it aligns with player view.
-					var sprayOrientation = hit.normal.y > 0.9f ? KCC.TransformRotation : Quaternion.identity;
-					Runner.Spawn(SprayPrefab, hit.point, sprayOrientation * Quaternion.LookRotation(-hit.normal));
-				}
 			}
 
 			// Store input buttons when the processing is done - next tick it is compared against current input buttons.

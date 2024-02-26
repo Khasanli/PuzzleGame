@@ -7,12 +7,6 @@ namespace SimpleFPS
 	public enum EInputButton
 	{
 		Jump,
-		Fire,
-		Reload,
-		Pistol,
-		Rifle,
-		Shotgun,
-		Spray,
 	}
 
 	/// <summary>
@@ -97,7 +91,6 @@ namespace SimpleFPS
 				lookRotationDelta *= LookSensitivity / 60f;
 
 				_accumulatedInput.LookRotationDelta += lookRotationDelta;
-				_accumulatedInput.Buttons.Set(EInputButton.Fire, mouse.leftButton.isPressed);
 			}
 
 			if (keyboard != null)
@@ -112,11 +105,6 @@ namespace SimpleFPS
 				_accumulatedInput.MoveDirection = moveDirection.normalized;
 
 				_accumulatedInput.Buttons.Set(EInputButton.Jump, keyboard.spaceKey.isPressed);
-				_accumulatedInput.Buttons.Set(EInputButton.Reload, keyboard.rKey.isPressed);
-				_accumulatedInput.Buttons.Set(EInputButton.Pistol, keyboard.digit1Key.isPressed || keyboard.numpad1Key.isPressed);
-				_accumulatedInput.Buttons.Set(EInputButton.Rifle, keyboard.digit2Key.isPressed || keyboard.numpad2Key.isPressed);
-				_accumulatedInput.Buttons.Set(EInputButton.Shotgun, keyboard.digit3Key.isPressed || keyboard.numpad3Key.isPressed);
-				_accumulatedInput.Buttons.Set(EInputButton.Spray, keyboard.fKey.isPressed);
 			}
 		}
 

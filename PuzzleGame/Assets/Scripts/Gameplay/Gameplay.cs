@@ -13,9 +13,6 @@ namespace SimpleFPS
 		[Networked, Capacity(24)]
 		public string    Nickname { get => default; set {} }
 		public PlayerRef PlayerRef;
-		public int       Kills;
-		public int       Deaths;
-		public int       LastKillTick;
 		public int       StatisticPosition;
 		public bool      IsAlive;
 		public bool      IsConnected;
@@ -229,8 +226,6 @@ namespace SimpleFPS
 			{
 				var data = playerPair.Value;
 
-				data.Kills = 0;
-				data.Deaths = 0;
 				data.StatisticPosition = int.MaxValue;
 				data.IsAlive = false;
 
@@ -259,19 +254,10 @@ namespace SimpleFPS
 				_tempPlayerData.Add(pair.Value);
 			}
 
-			_tempPlayerData.Sort((a, b) =>
-			{
-				if (a.Kills != b.Kills)
-					return b.Kills.CompareTo(a.Kills);
-
-				return a.LastKillTick.CompareTo(b.LastKillTick);
-			});
 
 			for (int i = 0; i < _tempPlayerData.Count; i++)
 			{
 				var playerData = _tempPlayerData[i];
-				playerData.StatisticPosition = playerData.Kills > 0 ? i + 1 : int.MaxValue;
-
 				PlayerData.Set(playerData.PlayerRef, playerData);
 			}
 		}

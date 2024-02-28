@@ -14,13 +14,11 @@ namespace SimpleFPS
 		public string    Nickname { get => default; set {} }
 		public PlayerRef PlayerRef;
 		public int       StatisticPosition;
-		public bool      IsAlive;
 		public bool      IsConnected;
 	}
 
 	public enum EGameplayState
 	{
-		Skirmish = 0,
 		Running  = 1,
 		Finished = 2,
 	}
@@ -32,18 +30,11 @@ namespace SimpleFPS
 	{
 		public GameUI GameUI;
 		public Player PlayerPrefab;
-		public float  GameDuration = 180f;
-		public float  PlayerRespawnTime = 5f;
-		public float  DoubleDamageDuration = 30f;
 
 		[Networked][Capacity(32)][HideInInspector]
 		public NetworkDictionary<PlayerRef, PlayerData> PlayerData { get; }
 		[Networked][HideInInspector]
-		public TickTimer RemainingTime { get; set; }
-		[Networked][HideInInspector]
 		public EGameplayState State { get; set; }
-
-		public bool DoubleDamageActive => State == EGameplayState.Running && RemainingTime.RemainingTime(Runner).GetValueOrDefault() < DoubleDamageDuration;
 
 		private bool _isNicknameSent;
 		private float _runningStateTime;
@@ -69,7 +60,7 @@ namespace SimpleFPS
 			PlayerManager.UpdatePlayerConnections(Runner, SpawnPlayer, DespawnPlayer);
 
 			// Start gameplay when there are enough players connected.
-			if (State == EGameplayState.Skirmish && PlayerData.Count > 1)
+			if (PlayerData.Count > 1)
 			{
 				StartGameplay();
 			}
@@ -85,11 +76,6 @@ namespace SimpleFPS
 				if (sessionInfo.IsVisible && (_runningStateTime > 60f || sessionInfo.PlayerCount >= sessionInfo.MaxPlayers))
 				{
 					sessionInfo.IsVisible = false;
-				}
-
-				if (RemainingTime.Expired(Runner))
-				{
-					StopGameplay();
 				}
 			}
 		}
@@ -115,7 +101,6 @@ namespace SimpleFPS
 				playerData.PlayerRef = playerRef;
 				playerData.Nickname = playerRef.ToString();
 				playerData.StatisticPosition = int.MaxValue;
-				playerData.IsAlive = false;
 				playerData.IsConnected = false;
 			}
 
@@ -125,7 +110,6 @@ namespace SimpleFPS
 			Debug.LogWarning($"{playerRef} connected.");
 
 			playerData.IsConnected = true;
-			playerData.IsAlive = true;
 
 			PlayerData.Set(playerRef, playerData);
 
@@ -148,7 +132,6 @@ namespace SimpleFPS
 				}
 
 				playerData.IsConnected = false;
-				playerData.IsAlive = false;
 				PlayerData.Set(playerRef, playerData);
 			}
 
@@ -177,7 +160,6 @@ namespace SimpleFPS
 				yield break;
 
 			// Update player data.
-			playerData.IsAlive = true;
 			PlayerData.Set(playerRef, playerData);
 
 			var spawnPoint = GetSpawnPoint();
@@ -219,15 +201,12 @@ namespace SimpleFPS
 			StopAllCoroutines();
 
 			State = EGameplayState.Running;
-			RemainingTime = TickTimer.CreateFromSeconds(Runner, GameDuration);
 
-			// Reset player data after skirmish and respawn players.
 			foreach (var playerPair in PlayerData)
 			{
 				var data = playerPair.Value;
 
 				data.StatisticPosition = int.MaxValue;
-				data.IsAlive = false;
 
 				PlayerData.Set(data.PlayerRef, data);
 

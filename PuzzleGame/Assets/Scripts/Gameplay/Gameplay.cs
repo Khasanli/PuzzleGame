@@ -55,33 +55,6 @@ namespace SimpleFPS
 		private List<PlayerData> _tempPlayerData = new(16);
 		private List<Transform> _recentSpawnPoints = new(4);
 
-		public void PlayerKilled(PlayerRef killerPlayerRef, PlayerRef victimPlayerRef, EWeaponType weaponType, bool isCriticalKill)
-		{
-			if (HasStateAuthority == false)
-				return;
-
-			// Update statistics of the killer player.
-			if (PlayerData.TryGet(killerPlayerRef, out PlayerData killerData))
-			{
-				killerData.Kills++;
-				killerData.LastKillTick = Runner.Tick;
-				PlayerData.Set(killerPlayerRef, killerData);
-			}
-
-			// Update statistics of the victim player.
-			var playerData = PlayerData.Get(victimPlayerRef);
-			playerData.Deaths++;
-			playerData.IsAlive = false;
-			PlayerData.Set(victimPlayerRef, playerData);
-
-			// Inform all clients about the kill via RPC.
-			RPC_PlayerKilled(killerPlayerRef, victimPlayerRef, weaponType, isCriticalKill);
-
-			StartCoroutine(RespawnPlayer(victimPlayerRef, PlayerRespawnTime));
-
-			RecalculateStatisticPositions();
-		}
-
 		public override void Spawned()
 		{
 			if (Runner.Mode == SimulationModes.Server)
@@ -301,25 +274,6 @@ namespace SimpleFPS
 
 				PlayerData.Set(playerData.PlayerRef, playerData);
 			}
-		}
-
-		[Rpc(RpcSources.StateAuthority, RpcTargets.All, Channel = RpcChannel.Reliable)]
-		private void RPC_PlayerKilled(PlayerRef killerPlayerRef, PlayerRef victimPlayerRef, EWeaponType weaponType, bool isCriticalKill)
-		{
-			string killerNickname = "";
-			string victimNickname = "";
-
-			if (PlayerData.TryGet(killerPlayerRef, out PlayerData killerData))
-			{
-				killerNickname = killerData.Nickname;
-			}
-
-			if (PlayerData.TryGet(victimPlayerRef, out PlayerData victimData))
-			{
-				victimNickname = victimData.Nickname;
-			}
-
-			// GameUI.GameplayView.KillFeed.ShowKill(killerNickname, victimNickname, weaponType, isCriticalKill);
 		}
 
 		[Rpc(RpcSources.All, RpcTargets.StateAuthority, Channel = RpcChannel.Reliable)]

@@ -45,7 +45,6 @@ namespace SimpleFPS
 			{
 				CurrentHealth = 0f;
 
-				_sceneObjects.Gameplay.PlayerKilled(instigator, Object.InputAuthority, weaponType, isCritical);
 			}
 
 			// Store relative hit position.

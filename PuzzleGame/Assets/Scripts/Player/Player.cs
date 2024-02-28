@@ -13,9 +13,7 @@ namespace SimpleFPS
 	{
 		[Header("Components")]
 		public SimpleKCC     KCC;
-		public Health        Health;
 		public Animator      Animator;
-		public HitboxRoot    HitboxRoot;
 
 		[Header("Setup")]
 		public float         MoveSpeed = 6f;
@@ -77,22 +75,6 @@ namespace SimpleFPS
 			if (IsProxy)
 				return;
 
-			if (Health.IsAlive == false)
-			{
-				// We want dead body to finish movement - fall to ground etc.
-				MovePlayer();
-
-				// Disable physics casts and collisions with other players.
-				KCC.SetColliderLayer(LayerMask.NameToLayer("Ignore Raycast"));
-				KCC.SetCollisionLayerMask(LayerMask.GetMask("Default"));
-
-				HitboxRoot.HitboxRootActive = false;
-
-				// Force enable third person visual for local player.
-				SetFirstPersonVisuals(false);
-				return;
-			}
-
 			if (GetInput(out NetworkedInput input))
 			{
 				// Input is processed on InputAuthority and StateAuthority.
@@ -117,19 +99,12 @@ namespace SimpleFPS
 			var moveVelocity = GetAnimationMoveVelocity();
 
 			// Set animation parameters.
-			Animator.SetBool("IsAlive", Health.IsAlive);
+			Animator.SetBool("IsAlive", true);
 			Animator.SetBool("IsGrounded", KCC.IsGrounded);
 			Animator.SetFloat("MoveX", moveVelocity.x, 0.05f, Time.deltaTime);
 			Animator.SetFloat("MoveZ", moveVelocity.z, 0.05f, Time.deltaTime);
 			Animator.SetFloat("MoveSpeed", moveVelocity.magnitude);
 			Animator.SetFloat("Look", -KCC.GetLookRotation(true, false).x / 90f);
-
-			if (Health.IsAlive == false)
-			{
-				// Disable UpperBody (override) and Look (additive) layers. Death animation is full-body.
-				int lookLayerIndex = Animator.GetLayerIndex("Look");
-				Animator.SetLayerWeight(lookLayerIndex, Mathf.Max(-1f, Animator.GetLayerWeight(lookLayerIndex) - Time.deltaTime));
-			}
 
 			if (_visibleJumpCount < _jumpCount)
 			{

@@ -16,8 +16,6 @@ namespace SimpleFPS
 
 		public UIPlayerView   PlayerView;
 		public UIGameplayView GameplayView;
-		public UIGameOverView GameOverView;
-		public GameObject     ScoreboardView;
 		public GameObject     MenuView;
 		public UISettingsView SettingsView;
 		public GameObject     DisconnectedView;
@@ -25,10 +23,6 @@ namespace SimpleFPS
 		// Called from NetworkEvents on NetworkRunner object
 		public void OnRunnerShutdown(NetworkRunner runner, ShutdownReason reason)
 		{
-			if (GameOverView.gameObject.activeSelf)
-				return; // Regular shutdown - GameOver already active
-
-			ScoreboardView.SetActive(false);
 			SettingsView.gameObject.SetActive(false);
 			MenuView.gameObject.SetActive(false);
 
@@ -72,15 +66,12 @@ namespace SimpleFPS
 			var keyboard = Keyboard.current;
 			bool gameplayActive = Gameplay.State < EGameplayState.Finished;
 
-			ScoreboardView.SetActive(gameplayActive && keyboard != null && keyboard.tabKey.isPressed);
-
 			if (gameplayActive && keyboard != null && keyboard.escapeKey.wasPressedThisFrame)
 			{
 				MenuView.SetActive(!MenuView.activeSelf);
 			}
 
 			GameplayView.gameObject.SetActive(gameplayActive);
-			GameOverView.gameObject.SetActive(gameplayActive == false);
 
 			var playerObject = Runner.GetPlayerObject(Runner.LocalPlayer);
 			if (playerObject != null)

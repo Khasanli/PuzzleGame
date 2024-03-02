@@ -13,17 +13,12 @@ namespace SimpleFPS
 		[Networked, Capacity(24)]
 		public string    Nickname { get => default; set {} }
 		public PlayerRef PlayerRef;
-		public int       Kills;
-		public int       Deaths;
-		public int       LastKillTick;
 		public int       StatisticPosition;
-		public bool      IsAlive;
 		public bool      IsConnected;
 	}
 
 	public enum EGameplayState
 	{
-		Skirmish = 0,
 		Running  = 1,
 		Finished = 2,
 	}
@@ -35,18 +30,11 @@ namespace SimpleFPS
 	{
 		public GameUI GameUI;
 		public Player PlayerPrefab;
-		public float  GameDuration = 180f;
-		public float  PlayerRespawnTime = 5f;
-		public float  DoubleDamageDuration = 30f;
 
 		[Networked][Capacity(32)][HideInInspector]
 		public NetworkDictionary<PlayerRef, PlayerData> PlayerData { get; }
 		[Networked][HideInInspector]
-		public TickTimer RemainingTime { get; set; }
-		[Networked][HideInInspector]
 		public EGameplayState State { get; set; }
-
-		public bool DoubleDamageActive => State == EGameplayState.Running && RemainingTime.RemainingTime(Runner).GetValueOrDefault() < DoubleDamageDuration;
 
 		private bool _isNicknameSent;
 		private float _runningStateTime;
@@ -54,33 +42,6 @@ namespace SimpleFPS
 		private List<PlayerRef> _pendingPlayers = new(16);
 		private List<PlayerData> _tempPlayerData = new(16);
 		private List<Transform> _recentSpawnPoints = new(4);
-
-		public void PlayerKilled(PlayerRef killerPlayerRef, PlayerRef victimPlayerRef, EWeaponType weaponType, bool isCriticalKill)
-		{
-			if (HasStateAuthority == false)
-				return;
-
-			// Update statistics of the killer player.
-			if (PlayerData.TryGet(killerPlayerRef, out PlayerData killerData))
-			{
-				killerData.Kills++;
-				killerData.LastKillTick = Runner.Tick;
-				PlayerData.Set(killerPlayerRef, killerData);
-			}
-
-			// Update statistics of the victim player.
-			var playerData = PlayerData.Get(victimPlayerRef);
-			playerData.Deaths++;
-			playerData.IsAlive = false;
-			PlayerData.Set(victimPlayerRef, playerData);
-
-			// Inform all clients about the kill via RPC.
-			RPC_PlayerKilled(killerPlayerRef, victimPlayerRef, weaponType, isCriticalKill);
-
-			StartCoroutine(RespawnPlayer(victimPlayerRef, PlayerRespawnTime));
-
-			RecalculateStatisticPositions();
-		}
 
 		public override void Spawned()
 		{
@@ -99,7 +60,7 @@ namespace SimpleFPS
 			PlayerManager.UpdatePlayerConnections(Runner, SpawnPlayer, DespawnPlayer);
 
 			// Start gameplay when there are enough players connected.
-			if (State == EGameplayState.Skirmish && PlayerData.Count > 1)
+			if (PlayerData.Count > 1)
 			{
 				StartGameplay();
 			}
@@ -115,11 +76,6 @@ namespace SimpleFPS
 				if (sessionInfo.IsVisible && (_runningStateTime > 60f || sessionInfo.PlayerCount >= sessionInfo.MaxPlayers))
 				{
 					sessionInfo.IsVisible = false;
-				}
-
-				if (RemainingTime.Expired(Runner))
-				{
-					StopGameplay();
 				}
 			}
 		}
@@ -145,7 +101,6 @@ namespace SimpleFPS
 				playerData.PlayerRef = playerRef;
 				playerData.Nickname = playerRef.ToString();
 				playerData.StatisticPosition = int.MaxValue;
-				playerData.IsAlive = false;
 				playerData.IsConnected = false;
 			}
 
@@ -155,7 +110,6 @@ namespace SimpleFPS
 			Debug.LogWarning($"{playerRef} connected.");
 
 			playerData.IsConnected = true;
-			playerData.IsAlive = true;
 
 			PlayerData.Set(playerRef, playerData);
 
@@ -178,7 +132,6 @@ namespace SimpleFPS
 				}
 
 				playerData.IsConnected = false;
-				playerData.IsAlive = false;
 				PlayerData.Set(playerRef, playerData);
 			}
 
@@ -207,7 +160,6 @@ namespace SimpleFPS
 				yield break;
 
 			// Update player data.
-			playerData.IsAlive = true;
 			PlayerData.Set(playerRef, playerData);
 
 			var spawnPoint = GetSpawnPoint();
@@ -249,17 +201,12 @@ namespace SimpleFPS
 			StopAllCoroutines();
 
 			State = EGameplayState.Running;
-			RemainingTime = TickTimer.CreateFromSeconds(Runner, GameDuration);
 
-			// Reset player data after skirmish and respawn players.
 			foreach (var playerPair in PlayerData)
 			{
 				var data = playerPair.Value;
 
-				data.Kills = 0;
-				data.Deaths = 0;
 				data.StatisticPosition = int.MaxValue;
-				data.IsAlive = false;
 
 				PlayerData.Set(data.PlayerRef, data);
 
@@ -286,40 +233,12 @@ namespace SimpleFPS
 				_tempPlayerData.Add(pair.Value);
 			}
 
-			_tempPlayerData.Sort((a, b) =>
-			{
-				if (a.Kills != b.Kills)
-					return b.Kills.CompareTo(a.Kills);
-
-				return a.LastKillTick.CompareTo(b.LastKillTick);
-			});
 
 			for (int i = 0; i < _tempPlayerData.Count; i++)
 			{
 				var playerData = _tempPlayerData[i];
-				playerData.StatisticPosition = playerData.Kills > 0 ? i + 1 : int.MaxValue;
-
 				PlayerData.Set(playerData.PlayerRef, playerData);
 			}
-		}
-
-		[Rpc(RpcSources.StateAuthority, RpcTargets.All, Channel = RpcChannel.Reliable)]
-		private void RPC_PlayerKilled(PlayerRef killerPlayerRef, PlayerRef victimPlayerRef, EWeaponType weaponType, bool isCriticalKill)
-		{
-			string killerNickname = "";
-			string victimNickname = "";
-
-			if (PlayerData.TryGet(killerPlayerRef, out PlayerData killerData))
-			{
-				killerNickname = killerData.Nickname;
-			}
-
-			if (PlayerData.TryGet(victimPlayerRef, out PlayerData victimData))
-			{
-				victimNickname = victimData.Nickname;
-			}
-
-			GameUI.GameplayView.KillFeed.ShowKill(killerNickname, victimNickname, weaponType, isCriticalKill);
 		}
 
 		[Rpc(RpcSources.All, RpcTargets.StateAuthority, Channel = RpcChannel.Reliable)]
